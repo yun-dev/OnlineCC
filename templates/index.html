@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>OnlineCC</title>
+    <link rel="stylesheet" href="{{url_for('static',filename='css/main.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/bulma.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='fa/css/all.css')}}">
+    <script src="{{url_for('static',filename='js/main.js')}}"></script>
+    <style type="text/css">
+        .game_list{
+            margin: 0 auto;
+            width: 1280px;
+            background-color: rgb(236, 246, 245);
+            padding: 30px;
+            border-radius: 6px;
+        }
+        .game_list .column{
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <section class="hero is-fullheight is-info">
+        <div class="hero-body">
+            <div class="game_list">
+                <h1 class="title has-text-dark has-text-centered">OnlineCC在线棋牌</h1>
+                <hr>
+                <div class="columns">
+                    <div class="column is-one-third">
+                        <a href="/lobby/">
+                            <div class="card large">
+                                <div class="card-image">
+                                    <figure class="image">
+                                        <img src="{{url_for('static',filename='img/login_logo.jpg')}}">
+                                    </figure>
+                                </div>
+                                <div class="card-content has-text-centered">
+                                    <span class="subtitle has-text-link">
+                                        <b>五子棋</b>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="column is-one-third">
+                        <a href="/lobby_chess/">
+                            <div class="card large">
+                                <div class="card-image">
+                                    <figure class="image">
+                                        <img src="{{url_for('static',filename='img/chess_login_logo.jpg')}}">
+                                    </figure>
+                                </div>
+                                <div class="card-content has-text-centered">
+                                    <span class="subtitle has-text-link">
+                                        <b>中国象棋</b>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="column is-one-third">
+                        <div class="card large">
+                            <div class="card-image">
+                                <figure class="image">
+                                    <img src="{{url_for('static',filename='img/coming_soon.jpg')}}">
+                                </figure>
+                            </div>
+                            <div class="card-content has-text-centered">
+                                <span class="subtitle has-text-grey">
+                                    <b>敬请期待</b>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column is-one-third">
+                        <div class="card large">
+                            <div class="card-image">
+                                <figure class="image">
+                                    <img src="{{url_for('static',filename='img/coming_soon.jpg')}}">
+                                </figure>
+                            </div>
+                            <div class="card-content has-text-centered">
+                                <span class="subtitle has-text-grey">
+                                    <b>敬请期待</b>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

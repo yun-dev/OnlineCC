@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+{% raw %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>在线五子棋 | 游戏房间</title>
+    <link rel="stylesheet" href="../../static/css/main.css">
+    <link rel="stylesheet" href="../../static/css/bulma.css">
+    <link rel="stylesheet" href="../../static/fa/css/all.css">
+    <script src="../../static/js/main.js"></script>
+    <script src="../../static/js/vue.js"></script>
+    <script src="../../static/js/socket.io.js"></script>
+    <script>
+        window.onload= () => {
+            let socket = io("/");
+            socket.on('enter_room', (data) => {
+                vue.msgs.push(data.user['name']+'进入房间')
+                if(vue.current_user.name==null){
+                    vue.current_user=data.user
+                }
+                vue.current_room=data.room
+                if(data.room.status==='游戏中' & data.user['name']===vue.current_user.name){
+                    vue.client_count_time()
+                }
+            })
+            socket.on('return_room', (room_id) => {
+                location.href="/room/"+room_id+"/"
+            })
+            socket.on('receive_chat_msg', (msg) => {
+                vue.msgs.push(msg)
+                setTimeout( () => {
+                        document.getElementById('msgs_bottom').scrollIntoView()
+                    }, 0)
+            })
+            socket.on("select_camp", (data) => {
+                camp=data.camp
+                user=data.user
+                ready_symbol=data.ready_symbol
+                if(camp==="white"){
+                    vue.current_room.white_player=user
+                }else{
+                    vue.current_room.black_player=user
+                }
+                if(data.ready_symbol==true){
+                    vue.current_room.status="准备中"
+                }
+            })
+            socket.on("quit_camp", (camp) => {
+                if(camp==="white"){
+                    vue.current_room.white_player=""
+                }else{
+                    vue.current_room.black_player=""
+                }
+            })
+            socket.on('game_start', (data) => {
+                camp=data.camp
+                if(camp==='white'){
+                    vue.current_room.white_ready=true
+                }else{
+                    vue.current_room.black_ready=true
+                }
+                if(data.status==="游戏中"){
+                    setTimeout( () => {
+                        var ready_time=document.getElementById('ready_time')
+                        ready_time.innerHTML="双方已准备，将在2秒后开始"
+                    },1000);
+                    setTimeout( () => {
+                        var ready_time=document.getElementById('ready_time')
+                        ready_time.innerHTML="双方已准备，将在1秒后开始"
+                    },2000)
+                    setTimeout( () => {
+                        vue.current_room.status="游戏中"
+                        vue.current_room.lock="black"
+                        vue.client_count_time()
+                        if(vue.current_room.black_player===vue.current_user.name){
+                            socket.emit('start_count_time',{"room":vue.current_room.id})
+                        }
+                    }, 3000);
+                }
+            })
+            socket.on('move', (step) => {
+                // if(vue.current_room.lock==="white"){
+                //     vue.current_room.lock='black'
+                // }else{
+                //     vue.current_room.lock='white'
+                // }
+                vue.already_send=false
+                vue.current_room.chess_list.push(step)
+                camp=step.camp
+                if(camp==="white"){
+                    vue.current_room.lock='black'
+                }else{
+                    vue.current_room.lock='white'
+                }
+            })
+            socket.on('ask_for_peace', (camp) => {
+                if(vue.current_room.white_player===vue.current_user.name || vue.current_room.black_player===vue.current_user.name){
+                   if((camp==='white' & vue.current_room.white_player===vue.current_user.name) || (camp==='black' & vue.current_room.black_player===vue.current_user.name)){
+                        vue.show_peace_tip=true
+                        var peace_tip=document.getElementById('peace_tip')
+                        setTimeout( () => {
+                            peace_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>发起求和，正在等待对方同意</p>5</div>"
+                        },0)
+                        setTimeout( () => {
+                            peace_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>发起求和，正在等待对方同意</p>4</div>"
+                        },1000)
+                        setTimeout( () => {
+                            peace_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>发起求和，正在等待对方同意</p>3</div>"
+                        },2000)
+                        setTimeout( () => {
+                            peace_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>发起求和，正在等待对方同意</p>2</div>"
+                        },3000)
+                        setTimeout( () => {
+                            peace_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>发起求和，正在等待对方同意</p>1</div>"
+                        },4000)
+                        setTimeout( () => {
+                            peace_tip.innerHTML=""
+                            vue.show_peace_tip=false
+                        },5000)
+                   }else{
+                        vue.show_peace=true
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML="取消 5"
+                        },0)
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML="取消 4"
+                        },1000)
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML="取消 3"
+                        },2000)
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML="取消 2"
+                        },3000)
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML="取消 1"
+                        },4000)
+                        setTimeout( () => {
+                            var peace_sure=document.getElementById('peace_sure')
+                            peace_sure.innerHTML=""
+                            vue.show_peace=false
+                        },5000)
+                   }
+                }
+            })
+            socket.on('ask_for_undo', (camp) => {
+                if(vue.current_room.white_player===vue.current_user.name || vue.current_room.black_player===vue.current_user.name){
+                   if((camp==='white' & vue.current_room.white_player===vue.current_user.name) || (camp==='black' & vue.current_room.black_player===vue.current_user.name)){
+                       vue.show_undo_tip=true
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>请求悔棋，正在等待对方同意</p>5</div>"
+                        },0)
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>请求悔棋，正在等待对方同意</p>4</div>"
+                        },1000)
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>请求悔棋，正在等待对方同意</p>3</div>"
+                        },2000)
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>请求悔棋，正在等待对方同意</p>2</div>"
+                        },3000)
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'><p>请求悔棋，正在等待对方同意</p>1</div>"
+                        },4000)
+                        setTimeout( () => {
+                            var undo_tip=document.getElementById('undo_tip')
+                            undo_tip.innerHTML=""
+                            vue.show_peace_tip=false
+                        },5000)
+                   }else{
+                       vue.show_undo=true
+                       setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML="取消 5"
+                        },0)
+                        setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML="取消 4"
+                        },1000)
+                        setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML="取消 3"
+                        },2000)
+                        setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML="取消 2"
+                        },3000)
+                        setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML="取消 1"
+                        },4000)
+                        setTimeout( () => {
+                            var undo_sure=document.getElementById('undo_sure')
+                            undo_sure.innerHTML=""
+                            vue.show_undo=false
+                        },5000)
+                   }
+                }
+            })
+            socket.on('game_over', (result) => {
+                if(result==="white"){
+                    msg='白色方获得胜利，'
+                }else if(result==='black'){
+                    msg='黑色方获得胜利，'
+                }else if(result==='peace'){
+                    msg='平局，'
+                }
+                setTimeout( () => {
+                    var over_tip=document.getElementById('over_tip')
+                    over_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'>"+msg+"3秒后重新开始</div>"
+                },0);
+                setTimeout( () => {
+                    var over_tip=document.getElementById('over_tip')
+                    over_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'>"+msg+"2秒后重新开始</div>"
+                },1000);
+                setTimeout( () => {
+                    var over_tip=document.getElementById('over_tip')
+                    over_tip.innerHTML="<div class='ready has-text-centered has-text-white subtitle'>"+msg+"1秒后重新开始</div>"
+                },2000)
+                setTimeout( () => {
+                    var over_tip=document.getElementById('over_tip')
+                    over_tip.innerHTML=""
+                    vue.init_game()
+                },3000)
+            })
+            socket.on('has_been_leave_room', (data) => {
+                user=data.user
+                owner=data.owner
+                if(user===vue.current_room.white_player){
+                    vue.current_room.white_player=""
+                }
+                if(user===vue.current_room.black_player){
+                    vue.current_room.black_player=""
+                }
+                vue.current_room.owner=owner
+                for(viewer in vue.current_room.viewers){
+                    if(vue.current_room.viewers[viewer].name===user){
+                        vue.current_room.viewers.splice(viewer,1)
+                    }
+                }
+            })
+            socket.on('undo_result', (result) => {
+                if(result==='agree'){
+                    vue.current_room.chess_list.pop()
+                    vue.current_room.chess_list.pop()
+                }
+                vue.show_undo=false
+                vue.show_undo_tip=false
+            })
+            socket.on('peace_result', (result) => {
+                vue.show_peace=false
+                vue.show_peace_tip=false
+            })
+            socket.on('has_change_room_setting', (data) => {
+                vue.current_room.white_time=data.time_select
+                vue.current_room.black_time=data.time_select
+                vue.current_room.not_score=data.not_score
+                vue.current_room.deny_undo_checkbox=data.deny_undo_checkbox
+            })
+            let vue=new Vue({
+                el: '#chessboard',
+                data: {
+                    current_user: {},
+                    current_room: {},
+                    msgs: [],
+                    inputMsg: "",
+                    white_s_time: "05:00",
+                    black_s_time: "05:00",
+                    show_undo: false,
+                    show_peace: false,
+                    show_undo_tip: false,
+                    show_peace_tip: false,
+                    show_leave: false,
+                    already_send: false,
+                },
+                methods: {
+                    chat() {
+                        if (this.inputMsg.trim() === '') {
+                        alert('消息不能为空')
+                        return
+                        }
+                        if (this.inputMsg.trim().length>40) {
+                        alert('不能超过40个字')
+                        return
+                        }
+                        let msg = {"room_id":this.current_room.id,"msg":this.current_user.name+"："+this.inputMsg}
+                        this.inputMsg = ''
+                        socket.emit('chat', msg)
+                    },
+                    
+                    client_count_time() {
+                        if(this.current_room.status==="游戏中"){
+                            if (this.current_room.lock==='white') {
+                                time=this.current_room.white_time
+                            } else {
+                                time=this.current_room.black_time
+                            }
+                            if (time>0) {
+                                mm=(parseInt(time/60)).toString()
+                                ss=(time%60).toString()
+                                s_time=mm+":"+ss
+                                if(this.current_room.lock==='white'){
+                                    this.white_s_time=s_time
+                                    this.current_room.white_time--
+                                }else{
+                                    this.black_s_time=s_time
+                                    this.current_room.black_time--
+                                }
+                            }
+                            setTimeout(this.client_count_time,1000)
+                        }
+                    },
+
+                    init_game() {
+                        this.current_room.status="等待中"
+                        exchange=this.current_room.white_player
+                        this.current_room.white_player=this.current_room.black_player
+                        this.current_room.black_player=exchange
+                        this.current_room.white_ready=false
+                        this.current_room.black_ready=false
+                        this.current_room.lock=''
+                        this.current_room.white_time=300
+                        this.current_room.black_time=300
+                        this.white_s_time='05:00'
+                        this.black_s_time='05:00'
+                        this.current_room.chess_list=[]
+                        socket.emit('sit_down',{"camp":"black","user":this.current_user.name,"room":this.current_room.id})
+                    },
+
+                    sit_down(site) {
+                        if(site==="white") {
+                            if(this.current_room.white_player==="" & this.current_room.black_player!=this.current_user.name){
+                                data={"camp":"white","user":this.current_user.name,"room":this.current_room.id}
+                                socket.emit('sit_down',data)
+                            }
+                        }else{
+                            if(this.current_room.black_player==="" & this.current_room.white_player!=this.current_user.name){
+                                data={"camp":"black","user":this.current_user.name,"room":this.current_room.id}
+                                socket.emit('sit_down',data)
+                            }
+                        }
+                    },
+                    
+                    stand_up(camp) {
+                        data={"camp":camp,"room":this.current_room.id}
+                        socket.emit('stand_up',data)
+                    },
+                    
+                    ready(camp) {
+                        data={"camp":camp,"room":this.current_room.id}
+                        socket.emit('ready',data)
+                    },
+                    
+                    click_board(event) {
+                        if(this.current_room.status==="游戏中"){
+                            let e = event || window.event
+                            var chessboard = document.getElementById('my_chessboard');
+                            camp=this.current_room.lock
+                            op='black_player'
+                            if(camp==="white"){
+                                op='white_player'
+                            }
+                            me=this.current_room[op]==this.current_user.name
+                            if(this.current_room[op] == this.current_user.name){
+                                    var pagex = e.pageX || scroll().left + e.clientX;  
+                                    var pagey = e.pageY || scroll().top + e.clientY;  
+                                    var xx = chessboard.offsetLeft;  
+                                    var yy = chessboard.offsetTop  
+                                    var targetx = pagex - xx;  
+                                    var targety = pagey - yy;  
+                                    var x=0;
+                                    var y=0;
+                                    if(58<targetx & targetx<98){
+                                        x=1
+                                    }else if(98<=targetx & targetx<138){
+                                        x=2
+                                    }else if(138<=targetx & targetx<178){
+                                        x=3
+                                    }else if(178<=targetx & targetx<218){
+                                        x=4
+                                    }else if(218<=targetx & targetx<258){
+                                        x=5
+                                    }else if(258<=targetx & targetx<298){
+                                        x=6
+                                    }else if(298<=targetx & targetx<338){
+                                        x=7
+                                    }else if(338<=targetx & targetx<378){
+                                        x=8
+                                    }else if(378<=targetx & targetx<418){
+                                        x=9
+                                    }else if(418<=targetx & targetx<458){
+                                        x=10
+                                    }else if(458<=targetx & targetx<498){
+                                        x=11
+                                    }else if(498<=targetx & targetx<538){
+                                        x=12
+                                    }else if(538<=targetx & targetx<578){
+                                        x=13
+                                    }else if(578<=targetx & targetx<618){
+                                        x=14
+                                    }else if(618<=targetx & targetx<658){
+                                        x=15
+                                    }else{
+                                        x=0
+                                    }
+                                    if(4<targety & targety<40){
+                                        y=1
+                                    }else if(42<=targety & targety<82){
+                                        y=2
+                                    }else if(82<=targety & targety<122){
+                                        y=3
+                                    }else if(122<=targety & targety<162){
+                                        y=4
+                                    }else if(162<=targety & targety<202){
+                                        y=5
+                                    }else if(202<=targety & targety<242){
+                                        y=6
+                                    }else if(242<=targety & targety<282){
+                                        y=7
+                                    }else if(282<=targety & targety<322){
+                                        y=8
+                                    }else if(322<=targety & targety<362){
+                                        y=9
+                                    }else if(362<=targety & targety<402){
+                                        y=10
+                                    }else if(402<=targety & targety<442){
+                                        y=11
+                                    }else if(442<=targety & targety<482){
+                                        y=12
+                                    }else if(482<=targety & targety<522){
+                                        y=13
+                                    }else if(522<=targety & targety<562){
+                                        y=14
+                                    }else if(562<=targety & targety<602){
+                                        y=15
+                                    }else{
+                                        y=0
+                                    }
+                                    if(x!=0 & y!=0){
+                                        if(this.already_send==false){
+                                            socket.emit('move',{"room":vue.current_room.id,"step":{"camp":vue.current_room.lock,"x":x,"y":y}})
+                                            this.already_send=true
+                                        }
+                                    }
+                            }
+                        }
+                    },
+                    
+                    for_peace() {
+                        if((this.current_room.lock==='white' & this.current_room.white_player===this.current_user.name) || (this.current_room.lock==='black' & this.current_room.black_player===this.current_user.name)){
+                            socket.emit('for_peace',{'room':this.current_room.id,'camp':this.current_room.lock})
+                        }
+                    },
+
+                    give_up() {
+                        if(this.current_room.white_player===this.current_user.name){
+                            camp='white'
+                        }
+                        if(this.current_room.black_player===this.current_user.name){
+                            camp='black'
+                        }
+                        socket.emit('give_up',{'room':this.current_room.id,'camp':camp})
+                    },
+
+                    undo() {
+                        if((this.current_room.lock==='white' & this.current_room.white_player===this.current_user.name) || (this.current_room.lock==='black' & this.current_room.black_player===this.current_user.name)){
+                            socket.emit('undo',{'room':this.current_room.id,'camp':this.current_room.lock})
+                        }
+                    },
+
+                    want_leave_room() {
+                        if(this.current_room.status==='游戏中' && (this.current_user.name===this.current_room.white_player || this.current_user.name===this.current_room.black_player)){
+                            this.show_leave=true
+                            setTimeout( () => {
+                                var leave_sure=document.getElementById('leave_sure')
+                                leave_sure.innerHTML="取消 3"
+                            },0)
+                            setTimeout( () => {
+                                var leave_sure=document.getElementById('leave_sure')
+                                leave_sure.innerHTML="取消 2"
+                            },1000)
+                            setTimeout( () => {
+                                var leave_sure=document.getElementById('leave_sure')
+                                leave_sure.innerHTML="取消 1"
+                            },2000)
+                            setTimeout( () => {
+                                var leave_sure=document.getElementById('leave_sure')
+                                leave_sure.innerHTML=""
+                                this.show_leave=false
+                            },3000)                            
+                        }else{
+                            this.leave_room()
+                        }
+                    },
+
+                    leave_room(){
+                        this.show_leave=false
+                        socket.emit('leave_room',{"room":this.current_room.id,"user":this.current_user.name})
+                        location.href='/lobby/'
+                    },
+                    
+                    cancel_leave(){
+                        this.show_leave=false
+                    },
+
+                    agree_undo(){
+                        socket.emit('undo_result',{'room':this.current_room.id,'result':'agree'})
+                    },
+
+                    deny_undo(){
+                        socket.emit('undo_result',{'room':this.current_room.id,'result':'disagree'})
+                    },
+
+                    agree_peace(){
+                        socket.emit('peace_result',{'room':this.current_room.id,'result':'agree'})
+                    },
+
+                    deny_peace(){
+                        socket.emit('peace_result',{'room':this.current_room.id,'result':'disagree'})
+                    },
+                    
+                    update_room(){
+                        var not_score_box=document.getElementById('not_score_box')
+                        var deny_undo_checkbox_box=document.getElementById('deny_undo_checkbox')
+                        var time_select_option=document.getElementById('time_select').value
+                        var not_score=false
+                        var deny_undo_checkbox=false
+                        var time_select=300
+                        if(not_score_box.checked){
+                            not_score=true
+                        }
+                        if(deny_undo_checkbox_box.checked){
+                            deny_undo_checkbox=true
+                        }
+                        if(time_select_option==="3分"){
+                            time_select=180
+                        }
+                        socket.emit('change_room_setting',{'room':this.current_room.id,'not_score':not_score,'deny_undo_checkbox':deny_undo_checkbox,'time_select':time_select})
+                    },
+          
+                    open_new_modal(user){
+                        for(viewer in this.current_room.viewers){
+                            if(this.current_room.viewers[viewer].name===user){
+                                win_rate=this.current_room.viewers[viewer].win/this.current_room.viewers[viewer].all
+                                if(isNaN(win_rate)){
+                                    win_rate=0
+                                }
+                                document.getElementById('user_name').innerHTML=this.current_room.viewers[viewer].name
+                                document.getElementById('user_total').innerHTML="对局："+(this.current_room.viewers[viewer].all).toString()+"场"
+                                document.getElementById('user_win').innerHTML="胜："+(this.current_room.viewers[viewer].win).toString()+"场"
+                                document.getElementById('user_peace').innerHTML="平："+(this.current_room.viewers[viewer].tie).toString()+"场"
+                                document.getElementById('user_fail').innerHTML="败："+(this.current_room.viewers[viewer].fail).toString()+"场"
+                                document.getElementById('user_division').innerHTML="胜率："+(win_rate*100).toString()+"%"
+                            }
+                        }
+                        document.getElementById("modal").classList.remove('undisplay')
+                    },
+                }
+            })
+            // window.vue = vue
+        }
+    </script>
+</head>
+<body>
+    <section class="hero is-fullheight is-info">
+        <div class="hero-body">
+            <div class="room_box box has-background-light" id="chessboard">
+                <div class="columns">
+                    <div class="column is-8">
+                        <div class="chessboard" id="my_chessboard" @click="click_board">
+
+                            <div v-for="(i,index) in current_room.chess_list" v-bind:class="'chessman'+' cols-'+i.x+' rows-'+i.y">
+                                <img :class="index===current_room.chess_list.length-1?'now':''" v-if="i.camp=='white'" src="../../static/img/white.png">
+                                <img :class="index===current_room.chess_list.length-1?'now':''" v-else src="../../static/img/black.png">
+                            </div>
+
+                            <div class="ready has-text-centered" v-if="current_room.status=='准备中' & current_room.white_player==current_user.name">
+                                <button class="button is-danger is-medium" @click="ready('white')" v-if="current_room.white_ready==false">&nbsp;&nbsp;准 备&nbsp;&nbsp;</button>
+                                <div v-else>
+                                    <p class="button is-light is-medium">&nbsp;&nbsp;已 准 备&nbsp;&nbsp;</p>
+                                    <p class="has-text-white" id="ready_time"></p>
+                                </div>
+                            </div>
+                            <div class="ready has-text-centered" v-if="current_room.status=='准备中' & current_room.black_player==current_user.name">
+                                <button class="button is-danger is-medium" @click="ready('black')" v-if="current_room.black_ready==false">&nbsp;&nbsp;准 备&nbsp;&nbsp;</button>
+                                <div v-else>
+                                    <p class="button is-light is-medium">&nbsp;&nbsp;已 准 备&nbsp;&nbsp;</p>
+                                    <p class="has-text-white" id="ready_time"></p>
+                                </div>
+                            </div>
+
+                            <div id="over_tip"></div>
+
+                            <div v-show="show_undo_tip" id="undo_tip"></div>
+
+                            <div v-show="show_undo" class='ready has-text-centered has-text-white subtitle'>
+                                <p>对方请求悔棋，是否同意？</p>
+                                <div class="columns">
+                                    <div class="column is-4 is-offset-2"><button class='button is-success' @click="agree_undo">同 意</button></div>
+                                    <div class="column is-4"><button class='button is-danger' id="undo_sure" @click='deny_undo'></button></div>
+                                </div>
+                            </div>
+
+                            <div v-show="show_peace_tip" id="peace_tip"></div>
+
+                            <div v-show="show_peace" class='ready has-text-centered has-text-white subtitle'>
+                                <p>对方求和，是否同意？</p>
+                                <div class="columns">
+                                    <div class="column is-4 is-offset-2"><button class='button is-success' @click="agree_peace">同 意</button></div>
+                                    <div class="column is-4"><button class='button is-danger' id="peace_sure" @click='deny_peace'></button></div>
+                                </div>
+                            </div>
+
+
+                            <div v-show="show_leave" class='ready has-text-centered has-text-white subtitle'>
+                                <p>离开房间将会记为逃跑，是否继续？</p>
+                                <div class="columns">
+                                    <div class="column is-4 is-offset-2"><button class='button is-success' @click="leave_room">确 定</button></div>
+                                    <div class="column is-4"><button class='button is-danger' id="leave_sure" @click='cancel_leave'></button></div>
+                                </div>
+                            </div>
+
+                            <div v-if="current_room.lock=='white'" class="now_col rows-3">
+                                <div class="white_now"></div>
+                                <span v-if="current_user.name==current_room.white_player" class="subtitle has-text-black">我</span>
+                            </div>
+                            <div v-if="current_room.status=='游戏中'" class="now_col_middle rows-8">
+                                <span v-if="(current_room.lock=='white' & current_user.name==current_room.white_player) || (current_room.lock=='black' & current_user.name==current_room.black_player)" class="title has-text-black">我<br>走<br>棋</span>
+                            </div>
+                            <div v-if="current_room.lock=='black'" class="now_col rows-13">
+                                <div class="black_now"></div>
+                                <span v-if="current_user.name==current_room.black_player" class="subtitle has-text-black">我</span>
+                            </div>
+
+                        </div>
+                    </div>
+                        
+                    <div class="column is-4 infoboard">
+                        <div v-if="current_room.lock=='white'" class="chessman white-exec">
+                            <div class="icon is-left">
+                                <i class="fas fa-arrow-down"></i>
+                            </div>
+                        </div>
+                        <div v-if="current_room.lock=='black'" class="chessman black-exec">
+                            <div class="icon is-left">
+                                <i class="fas fa-arrow-down"></i>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="columns is-mobile">
+                                <div class="column is-4">房间：{{current_room['id']}}</div>
+                                <div class="column is-4">模式：{{current_room['mode']}}</div>
+                                <div class="column is-offset-2">
+                                    <a @click="want_leave_room" class="button is-small is-danger">
+                                        <span class="icon">
+                                            <i class="fas fa-times"></i>
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <hr style="background-color:rgb(172, 195, 201)">
+                        <div class="field">
+                            <div class="columns">
+                                <div class="column" id="player1">
+                                    <a>
+                                        <article class="message is-success">
+                                            <div class="message-header">白方
+                                                <span class="icon" @click="stand_up('white')" v-if="current_room.white_player==current_user.name & current_room.status!='游戏中'"><i class="fas fa-times"></i></span>
+                                            </div>
+                                            <div class="message-body" @click="sit_down('white')">{{current_room.white_player}}</div>
+                                        </article>
+                                    </a>
+                                </div>
+                                <div class="column" id="player2">
+                                    <a>
+                                        <article class="message is-dark">
+                                            <div class="message-header">黑方
+                                                <span class="icon" @click="stand_up('black')" v-if="current_room.black_player==current_user.name & current_room.status!='游戏中'"><i class="fas fa-times"></i></span>
+                                            </div>
+                                            <div class="message-body" @click="sit_down('black')">{{current_room.black_player}}</div>
+                                        </article>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="columns">
+                                <div class="column">
+                                    <span id="white_player">{{white_s_time}}</span>
+                                </div>
+                                <div class="column">
+                                    <span id="black_player">{{black_s_time}}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="field">
+                            <div class="columns" v-if="current_room.status=='游戏中' && (current_room.white_player==current_user.name | current_room.black_player==current_user.name)">
+                                <div class="column">
+                                    <button type="button" @click="for_peace" class="button has-background-grey-light">&nbsp;&nbsp;求和&nbsp;&nbsp;</button>
+                                </div>
+                                <div class="column" v-if="!current_room.deny_undo_checkbox">
+                                    <button type="button" @click="undo" class="button has-background-grey-light">&nbsp;&nbsp;悔棋&nbsp;&nbsp;</button>
+                                </div>
+                                <div class="column">
+                                    <button type="button" @click="give_up" class="button has-background-grey-light">&nbsp;&nbsp;认输&nbsp;&nbsp;</button>
+                                </div>
+                            </div>
+                            <span v-else class="subtitle has-text-black">在线五子棋</span>
+                        </div>
+                        <hr style="background-color:rgb(172, 195, 201);margin-bottom: 18px">
+                        <div class="field">
+                            <div class="card chat">
+                                <div class="card-header">
+                                    <div class="tabs is-centered is-boxed is-small">
+                                        <ul>
+                                            <li class="is-active" id="chat_block_btn">
+                                            <a onclick="switch_module('chat')">
+                                                <span class="icon is-small"><i class="fas fa-comment"></i></span>
+                                                <span>聊 天</span>
+                                            </a>
+                                            </li>
+                                            <li class="" id="chess_manual_block_btn">
+                                            <a onclick="switch_module('chess')">
+                                                <span class="icon is-small"><i class="fas fa-file"></i></span>
+                                                <span>记 录</span>
+                                            </a>
+                                            </li>
+                                            <li class="" id="users_block_btn">
+                                            <a onclick="switch_module('users')">
+                                                <span class="icon is-small"><i class="fas fa-users"></i></span>
+                                                <span>玩 家</span>
+                                            </a>
+                                            </li>
+                                            <li v-show="current_room.owner==current_user.name" class="" id="setting_block_btn">
+                                            <a onclick="switch_module('setting')">
+                                                <span class="icon is-small"><i class="fas fa-wrench"></i></span>
+                                                <span>设 置</span>
+                                            </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <span class="" id="chat_block">
+                                    <div class="card-content chat_msg">
+                                        <ul>
+                                            <li v-for="msg in msgs"><i class="has-text-link">>></i>&nbsp;&nbsp;&nbsp;{{msg}}</li>
+                                        </ul>
+                                        <div id="msgs_bottom"></div>
+                                    </div>
+                                    <div class="card-content">
+                                        <input type="text" class="input" v-model="inputMsg" placeholder="输入消息，按Enter键发送" @keypress.enter="chat">
+                                    </div>
+                                </span>
+                                <span class="undisplay" id="chess_manual_block">
+                                    <div class="card-content chess_manual">
+                                        <ul>
+                                            <li v-for="(step,index) in current_room.chess_list">
+                                                <div class="columns">
+                                                    <div class="column is-2">{{index+1}}</div>
+                                                    <div class="column">{{step}}</div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </span>
+                                <span class="undisplay" id="users_block">
+                                    <div class="card-content users">
+                                        <ul>
+                                            <li v-for="user in current_room.viewers"><a class="button is-light is-small is-fullwidth" @click="open_new_modal(user['name'])">{{user['name']}}</a></li>
+                                        </ul>
+                                    </div>
+                                </span>
+                                <span class="undisplay" id="setting_block">
+                                    <div class="card-content setting">
+                                        <ul>
+                                            <li>
+                                                <div class="columns">
+                                                    <div class="column is-3">
+                                                        游戏模式:
+                                                    </div>
+                                                    <div class="column">
+                                                        <div class="select is-small">
+                                                            <select>
+                                                                <option>公开</option>
+                                                                <option>1300+</option>
+                                                                <option>1800+</option>
+                                                                <option>2100+</option>
+                                                                <option>私人</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="column">
+                                                        <label class="checkbox">
+                                                            <input v-if="current_room.not_score==true" id="not_score_box" checked="checked" type="checkbox">
+                                                            <input v-else id="not_score_box" type="checkbox">
+                                                            不计成绩
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <div class="columns">
+                                                    <div class="column is-3">
+                                                        游戏时长:
+                                                    </div>
+                                                    <div class="column">
+                                                        <div class="select is-small">
+                                                            <select id="time_select">
+                                                                <option>3分</option>
+                                                                <option>5分</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <label class="checkbox">
+                                                    <input v-if="current_room.deny_undo_checkbox==true" id="deny_undo_checkbox" checked="checked" type="checkbox">
+                                                    <input v-else id="deny_undo_checkbox" type="checkbox">
+                                                    不允许悔棋
+                                                </label>
+                                            </li>
+                                            <li class="has-text-centered">
+                                                <button v-if="current_room.status!='游戏中'" class="button is-dark" type="button" @click="update_room">保存设置</button>
+                                                <span v-else>游戏中，无法更改游戏设置</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </span>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="undisplay new_modal" id="modal">
+            <article class="message is-info">
+                <div class="message-header">
+                    <span id="user_name">张三</span>
+                    <a class="delete is-large" href="javascript:close_modal();"></a>
+                </div>
+                <div class="message-body">
+                    <p id="user_total">对局：0场</p>
+                    <p id="user_win">胜： 0场</p>
+                    <p id="user_peace">平： 0场</p>
+                    <p id="user_fail">败： 0场</p>
+                    <p id="user_division">胜率： 0%</p>
+                </div>
+            </article>
+        </div>
+    </section>
+</body>
+{% endraw %}
+</html>

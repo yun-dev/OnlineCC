@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+{% raw %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>在线中国象棋 | 游戏大厅</title>
+    <link rel="stylesheet" href="../static/css/main.css">
+    <link rel="stylesheet" href="../static/css/bulma.css">
+    <link rel="stylesheet" href="../static/fa/css/all.css">
+    <script src="../static/js/main.js"></script>
+    <script src="../static/js/vue.js"></script>
+    <script src="../static/js/socket.io.js"></script>
+    <script>
+        window.onload= ()=> {
+            let socket = io("/");
+            socket.on('lobby_infos_chess', (data) => {
+                vue.current_user.name=data.current_user['name']
+                vue.current_user.which_room=data.current_user['which_room']
+                for(room in data.rooms){
+                    vue.rooms.push(data.rooms[room])
+                }
+                for(u in data.users){
+                    vue.users.push(data.users[u])
+                }
+            })
+            socket.on('new_user_entered_lobby_chess', (user) => {
+                for(u in vue.users){
+                    if(vue.users[u].name===user.name){
+                        return
+                    }
+                }
+                vue.users.push(user)
+            })
+            socket.on('room_has_been_created_chess', (new_room) => {
+                console.log('创建了新房间')
+                vue.rooms.push(new_room)
+                if(new_room['owner']==vue.current_user.name){
+                    vue.current_user.which_room=new_room['id']
+                }
+            })
+            socket.on('delete_room_chess', (room_id) => {
+                console.log(room_id,'房间没人了，被系统删除')
+                for(room in vue.rooms){
+                    console.log(room)
+                    if(vue.rooms[room].id===room_id){
+                        vue.rooms.splice(room,1)
+                    }
+                }
+            })
+            socket.on('enter_room_chess', (room_id) => {
+                console.log('进入房间：',room_id)
+                location.href="/room_chess/"+room_id+"/"
+            })
+            let vue=new Vue({
+                el: '#login',
+                data: {
+                    rooms: [],
+                    users: [],
+                    current_user: {
+                        name: '',
+                        which_room: '',
+                    }
+                },
+                methods: {
+                    create_room() {
+                        socket.emit('create_room_chess',vue.current_user)
+                    },
+                    open_new_modal(user){
+                        for(u in this.users){
+                            if(this.users[u].name===user){
+                                win_rate=this.users[u].win/this.users[u].all
+                                if(isNaN(win_rate)){
+                                    win_rate=0
+                                }
+                                document.getElementById('user_name').innerHTML=this.users[u].name
+                                document.getElementById('user_total').innerHTML="对局："+(this.users[u].all).toString()+"场"
+                                document.getElementById('user_win').innerHTML="胜："+(this.users[u].win).toString()+"场"
+                                document.getElementById('user_peace').innerHTML="平："+(this.users[u].tie).toString()+"场"
+                                document.getElementById('user_fail').innerHTML="败："+(this.users[u].fail).toString()+"场"
+                                document.getElementById('user_division').innerHTML="胜率："+(win_rate*100).toString()+"%"
+                                if(this.users[u].which_room!=""){
+                                    document.getElementById('user_which_room').innerHTML="<a href='/room/"+this.users[u].which_room+"/' class='button'> 房间 # "+this.users[u].which_room+" </a>"
+                                }
+                            }
+                        }
+                        document.getElementById("modal").classList.remove('undisplay')
+                    },
+                }
+            })
+            window.vue = vue
+        }
+    </script>
+</head>
+<body>
+    <section class="hero is-fullheight is-info" id="login">
+        <div class="hero-body">
+            <div class="lobby_box box has-background-light">
+                <div class="field has-text-centered">
+                    <span class="title has-text-dark">OnlineCC | 中国象棋</span>
+                </div>
+                <hr>
+                <div class="field">
+                    <div class="columns">
+                        <div class="column is-2">
+                            <a @click="create_room()" class="button is-primary">创建房间</a>
+                        </div>
+                        <div class="column  is-3">
+                            <div class="control has-icons-left">
+                                <div class="select">
+                                    <select>
+                                        <option selected>#0-100</option>
+                                        <option>#100-200</option>
+                                        <option>#200-300</option>
+                                    </select>
+                                </div>
+                                <div class="icon is-small is-left">
+                                    <i class="fas fa-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="column" v-if="current_user.which_room">
+                            <a :href="'/room_chess/'+current_user.which_room+'/'" class="button is-warning">#{{current_user.which_room}}</a>
+                        </div>
+                    </div>
+                </div><hr>
+                <div class="field list">
+                    <div class="columns is-mobile">
+                        <div class="column is-9 has-background-grey-lighter" id="room_list">
+                            <h1 class="subtitle has-text-black">房间列表</h1>
+                            <a v-for="room in rooms" :href="'/room_chess/'+room.id+'/'">
+                                <article class="card">
+                                    <div class="card-content is-success">
+                                        <div class="columns">
+                                            <div class="column is-3">{{room.id}}</div>
+                                            <div class="column is-3">{{room.mode}}</div>
+                                            <div class="column is-3 has-text-info">{{room.status}}</div>
+                                            <div class="column">{{room.white_player}} vs {{room.black_player}}</div>
+                                        </div>
+                                    </div>
+                                </article>
+                            </a>
+                        </div>
+                        <div class="column has-background-grey-light" id="user_list">
+                            <h1 class="subtitle has-text-black">玩家列表</h1>
+                            <a v-for="user in users" @click="open_new_modal(user['name'])">
+                                <article class="card">
+                                    <div class="card-content is-success">
+                                        {{user.name}}
+                                    </div>
+                                </article>
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="undisplay new_modal" id="modal">
+            <article class="message is-info">
+                <div class="message-header">
+                    <span id="user_name">张三</span>
+                    <a class="delete is-large" href="javascript:close_modal();"></a>
+                </div>
+                <div class="message-body">
+                    <p id="user_total">对局：0场</p>
+                    <p id="user_win">胜： 0场</p>
+                    <p id="user_peace">平： 0场</p>
+                    <p id="user_fail">败： 0场</p>
+                    <p id="user_division">胜率： 0%</p>
+                    <p id="user_which_room"></p>
+                </div>
+            </article>
+        </div>
+    </section>
+</body>
+{% endraw %}
+</html>
